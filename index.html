@@ -307,7 +307,6 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Montserrat
 
     <div class="spread-frame" id="sframe">
       <div id="scontent"></div>
-      <div id="smarkers"></div>
 
       <!-- Overlay arrows -->
       <div class="spread-arrow left disabled" id="arr-left" onclick="go(-1)">
@@ -435,19 +434,10 @@ function render() {
     }
   }
 
-  renderMarkers();
   renderComments();
 
   // Scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function renderMarkers() {
-  const list = allComments[cur] || [];
-  document.getElementById('smarkers').innerHTML = list.map((c,i) => {
-    const left = 8 + (i*15)%74, top = 10 + (i*22)%72;
-    return `<div class="c-marker" style="left:${left}%;top:${top}%;" onclick="document.getElementById('clist').scrollIntoView({behavior:'smooth'})">${i+1}</div>`;
-  }).join('');
 }
 
 function renderComments() {
@@ -506,7 +496,6 @@ function addComment() {
   const dt = now.toLocaleDateString('ru') + ', ' + now.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
   allComments[cur].push({ id:cid++, spread:cur, author:'Евгения Бешлиу', role:'grad', time:dt, text:txt });
   document.getElementById('ctxt').value = '';
-  renderMarkers();
   renderComments();
   toast('Комментарий отправлен', 'green');
   setTimeout(() => document.getElementById('clist').scrollIntoView({behavior:'smooth'}), 100);
@@ -521,7 +510,7 @@ function delComment(id) {
     const i = allComments[k].findIndex(c => c.id === id);
     if (i !== -1) { allComments[k].splice(i,1); break; }
   }
-  renderMarkers(); renderComments();
+  renderComments();
 }
 
 function approveAlbum() {
