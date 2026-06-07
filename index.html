@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Проверка альбома — Фотобот</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F0F2F5;
+  --surface: #FFFFFF;
+  --surface2: #F9FAFB;
+  --border: #E5E7EB;
+  --border2: #D1D5DB;
+  --accent: #635BFF; --accent2: #7A73FF; --accent-light: #ECECFD;
+  --text: #1A1F36; --text2: #3C4257;
+  --muted: #697386; --muted2: #A3ACB9;
+  --green: #09825D; --green-light: #CBFFE3;
+  --red: #C0123C; --red-light: #FFE8EF;
+  --blue: #1A56DB;
+  --topbar-bg: #0B1020;
+  --sidebar-bg: #1A1D2E;
+  --bottom-bar-h: 72px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; font-size: 14px; overflow: hidden; }
+
+/* ─── TOPBAR ─── */
+.topbar {
+  background: var(--topbar-bg);
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(123,97,255,0.2);
+  z-index: 100;
+  position: relative;
+}
+.topbar-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.topbar-logo-text { font-family: 'Unbounded', sans-serif; font-size: 0.82rem; font-weight: 700; color: #fff; letter-spacing: 0.08em; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.status-pill-sm {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(16,185,129,0.15);
+  border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 20px; padding: 4px 10px;
+  font-size: 0.65rem; font-weight: 700; color: #6EE7B7;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; animation: blink 1.5s infinite; box-shadow: 0 0 4px rgba(74,222,128,0.6); }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+.burger-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer;
+}
+.burger-btn span { display: block; width: 18px; height: 2px; background: #fff; border-radius: 1px; }
+
+/* ─── DRAWER ─── */
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(2px); }
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
+.drawer { position: fixed; top: 0; right: -280px; width: 280px; height: 100%; background: var(--sidebar-bg); z-index: 201; transition: right 0.3s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; overflow-y: auto; }
+.drawer.open { right: 0; }
+.drawer-head { padding: 18px 16px; background: #13152A; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; }
+.drawer-close { width: 30px; height: 30px; border-radius: 7px; background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; }
+.drawer-nav { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.d-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; color: rgba(160,168,192,0.8); text-decoration: none; font-size: 0.82rem; font-weight: 500; transition: all 0.18s; }
+.d-item:active { background: rgba(123,97,255,0.15); color: #fff; }
+.d-item.active { background: rgba(123,97,255,0.15); color: #fff; border: 1px solid rgba(123,97,255,0.2); }
+.d-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.d-item.active .d-icon { opacity: 1; color: var(--accent2); }
+.d-badge { margin-left: auto; background: var(--red); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 0.65rem; font-weight: 700; }
+
+/* ─── MAIN LAYOUT ─── */
+.main-wrap {
+  display: flex; flex-direction: column;
+  height: calc(100% - 52px);
+  overflow: hidden;
+}
+
+/* ─── VIEWER ─── */
+.viewer {
+  flex: 1;
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 12px 12px 0;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Spread info bar */
+.spread-info-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.spread-badge-m {
+  background: rgba(11,16,32,0.8);
+  color: rgba(255,255,255,0.9);
+  font-size: 0.65rem; font-weight: 600;
+  padding: 4px 10px; border-radius: 5px;
+  letter-spacing: 0.02em;
+  max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.spread-counter-m { font-size: 0.68rem; color: var(--muted); font-weight: 600; }
+
+/* Spread frame */
+.spread-frame {
+  width: 100%; flex-shrink: 0;
+  border-radius: 4px; overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  position: relative;
+}
+.spread-frame svg { display: block; width: 100%; height: auto; }
+
+/* Comment markers */
+.c-marker {
+  position: absolute;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--red); border: 2px solid #fff;
+  color: #fff; font-size: 0.55rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 10;
+  box-shadow: 0 2px 6px rgba(192,18,60,0.5);
+}
+
+/* ─── BOTTOM NAV BAR ─── */
+.bottom-bar {
+  height: var(--bottom-bar-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn-m {
+  height: 44px; border-radius: 10px; border: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.78rem; font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.nav-btn-m:active { transform: scale(0.96); }
+.nav-btn-m.prev {
+  background: var(--bg); border: 1.5px solid var(--border2);
+  color: var(--text2); padding: 0 16px;
+}
+.nav-btn-m.prev:disabled { opacity: 0.35; pointer-events: none; }
+.nav-btn-m.next {
+  flex: 1;
+  background: var(--blue); color: #fff;
+  box-shadow: 0 3px 10px rgba(26,86,219,0.3);
+}
+.nav-btn-m.next.finish {
+  background: linear-gradient(135deg, #09825D, #10B981);
+  box-shadow: 0 3px 10px rgba(9,130,93,0.3);
+}
+
+/* Comment counter chip in bottom bar */
+.comments-chip {
+  display: flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.comments-chip:active { background: var(--accent-light); border-color: var(--accent); }
+.comments-chip-icon { color: var(--muted); }
+.comments-chip-count {
+  font-size: 0.7rem; font-weight: 700; color: var(--text2);
+  min-width: 14px; text-align: center;
+}
+.comments-chip-count.has-comments { color: var(--red); }
+
+/* ─── COMMENTS BOTTOM SHEET ─── */
+.sheet-overlay {
+  position: fixed; inset: 0;
+  background: rgba(11,16,32,0.6);
+  z-index: 500;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+  backdrop-filter: blur(3px);
+}
+.sheet-overlay.open { opacity: 1; pointer-events: all; }
+
+.comments-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  z-index: 510;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+  max-height: 88dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.comments-sheet.open { transform: translateY(0); }
+
+.sheet-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 10px auto 0; flex-shrink: 0; }
+
+.sheet-header {
+  padding: 12px 18px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.sheet-title { font-family: 'Unbounded', sans-serif; font-size: 0.88rem; font-weight: 700; color: var(--text); }
+.sheet-close { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+.sheet-spread-label { font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+
+/* Comments list */
+.sheet-list {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.sheet-list::-webkit-scrollbar { width: 3px; }
+
+.c-empty-m {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 20px; gap: 10px; color: var(--muted2); text-align: center;
+}
+.c-empty-m svg { opacity: 0.3; }
+.c-empty-m p { font-size: 0.78rem; line-height: 1.6; }
+
+.c-item-m {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 13px;
+  animation: cIn 0.2s ease;
+}
+@keyframes cIn { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
+.c-item-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 5px; }
+.c-ava-m {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #E0DAFF; color: var(--accent);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.c-ava-m svg { width: 18px; height: 18px; }
+.c-meta-m { flex: 1; min-width: 0; }
+.c-name-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 2px; }
+.c-author-m { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+.c-time-m { font-size: 0.62rem; color: var(--muted2); white-space: nowrap; }
+.c-spread-link-m { font-size: 0.72rem; font-weight: 600; color: var(--blue); margin-bottom: 5px; display: block; }
+.c-del-m { background: none; border: none; color: var(--muted2); cursor: pointer; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.c-del-m:active { color: var(--red); background: var(--red-light); }
+.c-text-m { font-size: 0.8rem; color: var(--text2); line-height: 1.55; padding-left: 44px; }
+
+/* Comment input in sheet */
+.sheet-input-wrap {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sheet-input-hint {
+  font-size: 0.68rem; color: var(--muted);
+  margin-bottom: 7px; display: flex; align-items: center; gap: 5px;
+}
+.spread-ind-m {
+  background: #E1EFFE; color: var(--blue);
+  border-radius: 5px; padding: 2px 7px;
+  font-size: 0.62rem; font-weight: 600;
+}
+.sheet-textarea {
+  width: 100%; min-height: 72px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 12px;
+  font-family: 'Montserrat', sans-serif; font-size: 0.84rem; color: var(--text);
+  background: var(--surface); resize: none; outline: none;
+  -webkit-appearance: none;
+  transition: border-color 0.2s;
+}
+.sheet-textarea:focus { border-color: var(--accent); }
+.sheet-textarea::placeholder { color: var(--muted2); }
+.sheet-send {
+  width: 100%; height: 44px; margin-top: 10px;
+  border: none; border-radius: 10px;
+  background: var(--blue); color: #fff;
+  font-family: 'Montserrat', sans-serif; font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
+  box-shadow: 0 3px 10px rgba(26,86,219,0.3);
+  transition: all 0.15s;
+}
+.sheet-send:active { background: #1447c0; transform: scale(0.98); }
+
+/* Approve button */
+.sheet-approve {
+  margin: 0 16px 16px;
+  height: 44px; border: none; border-radius: 10px;
+  background: linear-gradient(135deg, #065f46, #09825D);
+  color: #fff; font-family: 'Montserrat', sans-serif;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  box-shadow: 0 3px 10px rgba(9,130,93,0.35);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.sheet-approve:active { background: linear-gradient(135deg, #047857, #10B981); transform: scale(0.98); }
+.sheet-approve-hint { font-size: 0.65rem; color: var(--muted); text-align: center; margin: -10px 16px 12px; flex-shrink: 0; }
+
+/* ─── APPROVED OVERLAY ─── */
+.approved-overlay {
+  position: fixed; inset: 0;
+  background: rgba(9,130,93,0.94);
+  z-index: 800;
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: 32px;
+  text-align: center;
+}
+.approved-overlay.show { display: flex; }
+.approved-icon { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+.approved-title { font-family: 'Unbounded', sans-serif; font-size: 1.2rem; font-weight: 700; color: #fff; }
+.approved-sub { font-size: 0.84rem; color: rgba(255,255,255,0.8); line-height: 1.6; max-width: 300px; }
+.approved-close { margin-top: 8px; height: 44px; padding: 0 28px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.4); background: transparent; color: #fff; font-family: 'Montserrat', sans-serif; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+
+/* ─── TOAST ─── */
+.toast-wrap { position: fixed; bottom: calc(var(--bottom-bar-h) + 10px); left: 14px; right: 14px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast { background: #1A1F36; color: #fff; border-radius: 10px; padding: 11px 14px; font-size: 0.8rem; font-family: 'Montserrat', sans-serif; font-weight: 500; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); animation: tIn 0.28s ease; pointer-events: all; }
+@keyframes tIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:none;} }
+@keyframes tOut { from{opacity:1;} to{opacity:0;transform:translateY(8px);} }
+.t-icon { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.t-icon.green { background: var(--green-light); color: var(--green); }
+.t-icon.blue  { background: #E1EFFE; color: var(--blue); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <a href="#" class="topbar-logo">
+    <svg width="22" height="19" viewBox="0 0 265 233" fill="none">
+      <path d="M0 0 C0 73.26 0 146.52 0 222 C-6.2 220.62 -12.03 219.13 -18.01 217.11 C-28.91 213.46 -53.06 205.38 -96 191 C-96 138.2 -96 85.4 -96 31 C-49.69 15.5 -29.17 8.63 0 0 Z" fill="#fff" transform="translate(259,6)"/>
+      <path d="M0 0 C0 73.26 0 146.52 0 222 C-10.88 218.24 -22.01 212.65 -48.47 199.37 C-57.64 194.76 -64 191 -64 191 C-64 138.2 -64 85.4 -64 31 C-34.06 15.43 -17.27 6.98 0 0 Z" fill="#fff" transform="translate(132,6)"/>
+      <path d="M0 0 C0 73.26 0 146.52 0 222 C-14 215 -26.78 205.93 -33 191 C-39.09 168.15 -36.93 100.1 -21.74 14.45 C-6.49 0 0 0 0 0 Z" fill="#fff" transform="translate(37,6)"/>
+    </svg>
+    <span class="topbar-logo-text">ФОТОБОТ</span>
+  </a>
+  <div class="topbar-right">
+    <div class="status-pill-sm"><div class="status-dot"></div>На утверждении</div>
+    <div class="burger-btn" onclick="openDrawer()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</header>
+
+<!-- DRAWER -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <span style="font-family:'Unbounded',sans-serif;font-size:0.8rem;font-weight:700;color:#fff;letter-spacing:0.06em;">ФОТОБОТ</span>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <nav class="drawer-nav">
+    <a href="#" class="d-item"><svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Заказы</a>
+    <a href="#" class="d-item"><svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Мои шаблоны</a>
+    <a href="#" class="d-item active"><svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Альбомы со мной</a>
+    <a href="#" class="d-item"><svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Профиль</a>
+    <a href="#" class="d-item"><svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Уведомления<span class="d-badge">3</span></a>
+    <a href="#" class="d-item"><svg class="d-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Выход</a>
+  </nav>
+</div>
+
+<!-- MAIN WRAP -->
+<div class="main-wrap">
+
+  <!-- VIEWER -->
+  <div class="viewer" id="viewer">
+    <!-- Spread info -->
+    <div class="spread-info-bar">
+      <div class="spread-badge-m" id="sbadge">Обложка: Евгения Бешлиу</div>
+      <div class="spread-counter-m" id="scounter">1 / 7</div>
+    </div>
+
+    <!-- Spread frame -->
+    <div class="spread-frame" id="sframe">
+      <div id="scontent"></div>
+      <div id="smarkers"></div>
+    </div>
+
+    <!-- spacer -->
+    <div style="height:12px;flex-shrink:0;"></div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <button class="nav-btn-m prev" id="btn-prev" onclick="go(-1)" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <div class="comments-chip" onclick="openSheet()">
+      <svg class="comments-chip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span class="comments-chip-count" id="chip-count">0</span>
+    </div>
+
+    <button class="nav-btn-m next" id="btn-next" onclick="go(1)">
+      Дальше
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  </div>
+
+</div><!-- /main-wrap -->
+
+<!-- SHEET OVERLAY -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
+
+<!-- COMMENTS BOTTOM SHEET -->
+<div class="comments-sheet" id="comments-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div>
+      <div class="sheet-title" id="sheet-title">Комментарии</div>
+      <div class="sheet-spread-label" id="sheet-sublabel">Разворот 1 — Обложка</div>
+    </div>
+    <button class="sheet-close" onclick="closeSheet()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet-list" id="sheet-list"></div>
+
+  <div class="sheet-input-wrap">
+    <div class="sheet-input-hint">
+      Комментарий к:
+      <span class="spread-ind-m" id="spread-ind">Разворот 1</span>
+    </div>
+    <textarea class="sheet-textarea" id="ctxt" placeholder="Текст комментария" rows="3"></textarea>
+    <button class="sheet-send" onclick="addComment()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Отправить
+    </button>
+  </div>
+
+  <button class="sheet-approve" onclick="approveAlbum()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    Утвердить альбом
+  </button>
+  <div class="sheet-approve-hint">Подтвердите, что альбом готов к печати</div>
+</div>
+
+<!-- APPROVED OVERLAY -->
+<div class="approved-overlay" id="approved-overlay">
+  <div class="approved-icon">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="approved-title">Альбом утверждён!</div>
+  <div class="approved-sub">Спасибо! Фотограф получил уведомление и скоро отправит альбом в печать.</div>
+  <button class="approved-close" onclick="document.getElementById('approved-overlay').classList.remove('show')">Закрыть</button>
+</div>
+
+<div class="toast-wrap" id="twrap"></div>
+
+<script>
+// ═══ SPREADS ═══
+const spreads = [
+  {
+    label: 'Обложка: Евгения Бешлиу', sub: 'Разворот 1 — Обложка',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <defs><pattern id="p0" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#252525"/><path d="M0 20L20 0" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs>
+      <rect width="860" height="580" fill="url(#p0)"/>
+      <rect x="420" y="0" width="440" height="580" fill="#1e1e1e"/>
+      <rect x="440" y="36" width="395" height="380" fill="#000"/>
+      <image href="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&h=500&fit=crop&crop=faces" x="440" y="36" width="395" height="380" preserveAspectRatio="xMidYMid slice"/>
+      <text x="637" y="458" fill="rgba(255,255,255,0.45)" font-size="12" text-anchor="middle" font-family="sans-serif" letter-spacing="3">2026</text>
+      <text x="637" y="494" fill="rgba(255,255,255,0.92)" font-size="24" font-weight="600" text-anchor="middle" font-family="Georgia,serif">Евгения</text>
+      <text x="637" y="522" fill="rgba(255,255,255,0.92)" font-size="24" font-weight="600" text-anchor="middle" font-family="Georgia,serif">Бешлиу</text>
+      <line x1="538" y1="534" x2="736" y2="534" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+      <text x="582" y="555" fill="rgba(255,255,255,0.4)" font-size="11" font-family="sans-serif">1999</text>
+      <text x="668" y="555" fill="rgba(255,255,255,0.4)" font-size="11" font-family="sans-serif">11А</text>
+      <text x="210" y="534" fill="rgba(255,255,255,0.14)" font-size="10" text-anchor="middle" font-family="sans-serif" letter-spacing="4">МОЙ ВЫПУСКНОЙ АЛЬБОМ</text>
+      <text x="210" y="555" fill="rgba(255,255,255,0.11)" font-size="10" text-anchor="middle" font-family="sans-serif">2026</text>
+    </svg>`,
+  },
+  {
+    label: 'Индивидуальный — Артём Калимуллин', sub: 'Разворот 2 — Индивидуальный',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <rect width="860" height="580" fill="#fff"/>
+      <rect x="0" y="0" width="430" height="580" fill="#f9f9f9"/>
+      <image href="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=540&fit=crop&crop=faces" x="38" y="36" width="354" height="470" preserveAspectRatio="xMidYMid slice"/>
+      <text x="215" y="525" fill="#333" font-size="18" font-weight="600" text-anchor="middle" font-family="Georgia,serif">Артём Калимуллин</text>
+      <text x="215" y="552" fill="#999" font-size="10" text-anchor="middle" font-family="sans-serif" letter-spacing="1">«Всегда иди вперёд»</text>
+      <image href="https://images.unsplash.com/photo-1500048993953-d23a436266cf?w=430&h=240&fit=crop" x="448" y="36" width="375" height="232" preserveAspectRatio="xMidYMid slice"/>
+      <image href="https://images.unsplash.com/photo-1522529599102-193c0d76b5b6?w=180&h=188&fit=crop" x="448" y="278" width="181" height="188" preserveAspectRatio="xMidYMid slice"/>
+      <image href="https://images.unsplash.com/photo-1564564321837-a57b7070ac4f?w=180&h=188&fit=crop" x="641" y="278" width="182" height="188" preserveAspectRatio="xMidYMid slice"/>
+      <text x="638" y="500" fill="#666" font-size="13" font-weight="600" text-anchor="middle" font-family="sans-serif">2026 · 11А</text>
+    </svg>`,
+  },
+  {
+    label: 'Виньетка учеников', sub: 'Разворот 3 — Виньетка',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <rect width="860" height="580" fill="#fff"/>
+      <text x="430" y="34" fill="#333" font-size="12" text-anchor="middle" font-family="sans-serif" letter-spacing="3" font-weight="700">НАШИ ВЫПУСКНИКИ · 2026</text>
+      ${['1494790108377-be9c29b29330','1488426862026-3ee34a7d66df','1545167622-3a6ac756afa4','1500048993953-d23a436266cf','1573496359142-b8d87734a5a2','1519085360753-af0119f7cbe7','1531746020798-e6953c6e8e04','1438761681033-6461ffad8d80','1524504388940-b1c1722653e1','1507003211169-0a1dd7228f2d','1564564321837-a57b7070ac4f','1492562080023-ab3db95bfbce'].map((id,i) => {
+        const c=i%4, r=Math.floor(i/4), x=20+c*208, y=48+r*172;
+        const n=['Алеся В.','Анастасия С.','Андрей Н.','Артём К.','Анна Б.','Алекс К.','Евгения Б.','Виктория П.','Дарья Л.','Артём К.','Валентин Д.','Андрей Н.'];
+        return `<image href="https://images.unsplash.com/photo-${id}?w=200&h=200&fit=crop&crop=faces" x="${x}" y="${y}" width="185" height="140" preserveAspectRatio="xMidYMid slice"/><text x="${x+92}" y="${y+158}" fill="#666" font-size="10" text-anchor="middle" font-family="sans-serif">${n[i]}</text>`;
+      }).join('')}
+    </svg>`,
+  },
+  {
+    label: 'Учителя', sub: 'Разворот 4 — Учителя',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <rect width="860" height="580" fill="#f8f8f8"/>
+      <text x="430" y="36" fill="#333" font-size="12" text-anchor="middle" font-family="sans-serif" letter-spacing="3" font-weight="700">НАШИ УЧИТЕЛЯ</text>
+      ${['1573496359142-b8d87734a5a2','1560250097-0b93528c311a','1472099645785-5658abf4ff4e','1607746882042-944635dfe10e','1508214751196-bcfd4ca60f91','1438761681033-6461ffad8d80','1531746020798-e6953c6e8e04','1500648767791-00dcc994a43e'].map((id,i) => {
+        const c=i%4, r=Math.floor(i/4), x=28+c*200, y=54+r*242;
+        const n=['Анна Бегунова','Андрей Сергиенко','Александр Толстой','Валентина С.','Эльвира Зайцева','Алина Куркина','Суслова Дарья','Дмитрий Б.'];
+        return `<rect x="${x}" y="${y}" width="164" height="204" fill="#e8eaf0"/><image href="https://images.unsplash.com/photo-${id}?w=200&h=250&fit=crop&crop=faces" x="${x}" y="${y}" width="164" height="204" preserveAspectRatio="xMidYMid slice"/><text x="${x+82}" y="${y+222}" fill="#555" font-size="10" text-anchor="middle" font-family="sans-serif">${n[i]}</text>`;
+      }).join('')}
+    </svg>`,
+  },
+  {
+    label: 'Коллаж — репортаж', sub: 'Разворот 5 — Коллаж',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <rect width="860" height="580" fill="#111"/>
+      <image href="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=500&h=360&fit=crop" x="8" y="8" width="424" height="286" preserveAspectRatio="xMidYMid slice"/>
+      <image href="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=420&h=286&fit=crop" x="440" y="8" width="412" height="286" preserveAspectRatio="xMidYMid slice"/>
+      <image href="https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=860&h=278&fit=crop" x="8" y="302" width="844" height="270" preserveAspectRatio="xMidYMid slice"/>
+    </svg>`,
+  },
+  {
+    label: 'Индивидуальный — Алеся Вайзман', sub: 'Разворот 6 — Индивидуальный',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <rect width="860" height="580" fill="#f5efe6"/>
+      <rect x="0" y="0" width="430" height="580" fill="#ede8e0"/>
+      <image href="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=560&fit=crop&crop=faces" x="38" y="28" width="354" height="472" preserveAspectRatio="xMidYMid slice"/>
+      <text x="215" y="524" fill="#5a4a3a" font-size="18" font-weight="600" text-anchor="middle" font-family="Georgia,serif">Алеся Вайзман</text>
+      <text x="215" y="552" fill="#8a7060" font-size="10" text-anchor="middle" font-family="sans-serif" letter-spacing="2">2026 · 11А</text>
+      <image href="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=440&h=580&fit=crop" x="448" y="0" width="412" height="580" preserveAspectRatio="xMidYMid slice"/>
+    </svg>`,
+  },
+  {
+    label: 'Задняя обложка', sub: 'Разворот 7 — Задняя обложка',
+    html: `<svg viewBox="0 0 860 580" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+      <defs><pattern id="p7" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#1a1a1a"/><path d="M0 20L20 0" stroke="rgba(255,255,255,0.03)" stroke-width="1"/></pattern></defs>
+      <rect width="860" height="580" fill="url(#p7)"/>
+      <text x="430" y="240" fill="rgba(255,255,255,0.06)" font-size="68" font-weight="900" text-anchor="middle" font-family="sans-serif">ФОТОБОТ</text>
+      <text x="430" y="296" fill="rgba(255,255,255,0.12)" font-size="12" text-anchor="middle" font-family="sans-serif" letter-spacing="5">ВЫПУСКНОЙ АЛЬБОМ 2026</text>
+      <rect x="220" y="314" width="420" height="1" fill="rgba(255,255,255,0.07)"/>
+      <text x="430" y="342" fill="rgba(255,255,255,0.1)" font-size="10" text-anchor="middle" font-family="sans-serif" letter-spacing="2">fottobot.online</text>
+    </svg>`,
+  },
+];
+
+// ═══ STATE ═══
+const allComments = {};
+let cur = 0;
+let cid = 1;
+
+// Seed example
+allComments[0] = [{
+  id: cid++, spread: 0,
+  author: 'Евгения Бешлиу', role: 'grad',
+  time: '07.06.2026, 11:42',
+  text: 'Пожалуйста, поменяйте фото на обложке — хочу где я смотрю прямо в камеру.'
+}];
+
+// ═══ RENDER ═══
+function render() {
+  const s = spreads[cur];
+  document.getElementById('sbadge').textContent = s.label;
+  document.getElementById('scounter').textContent = (cur+1) + ' / ' + spreads.length;
+  document.getElementById('scontent').innerHTML = s.html;
+  document.getElementById('btn-prev').disabled = cur === 0;
+
+  const next = document.getElementById('btn-next');
+  if (cur === spreads.length - 1) {
+    next.className = 'nav-btn-m next finish';
+    next.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Завершить';
+  } else {
+    next.className = 'nav-btn-m next';
+    next.innerHTML = 'Дальше <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>';
+  }
+
+  renderMarkers();
+  updateChip();
+  document.getElementById('viewer').scrollTop = 0;
+
+  // Update sheet labels
+  document.getElementById('sheet-sublabel').textContent = s.sub;
+  document.getElementById('spread-ind').textContent = 'Разворот ' + (cur+1);
+}
+
+function renderMarkers() {
+  const list = allComments[cur] || [];
+  document.getElementById('smarkers').innerHTML = list.map((c,i) => {
+    const left = 8 + (i*15)%74, top = 10 + (i*22)%72;
+    return `<div class="c-marker" style="left:${left}%;top:${top}%;" onclick="openSheet()">${i+1}</div>`;
+  }).join('');
+}
+
+function updateChip() {
+  const total = Object.values(allComments).reduce((s,a) => s+a.length, 0);
+  const el = document.getElementById('chip-count');
+  el.textContent = total;
+  el.className = 'comments-chip-count' + (total > 0 ? ' has-comments' : '');
+}
+
+function renderSheetList() {
+  const el = document.getElementById('sheet-list');
+  const title = document.getElementById('sheet-title');
+
+  // All comments across all spreads
+  let list = [];
+  for (let i = 0; i < spreads.length; i++) {
+    (allComments[i] || []).forEach(c => list.push({...c, spreadIdx: i}));
+  }
+  list.sort((a,b) => b.id - a.id);
+
+  title.textContent = list.length > 0 ? `Комментарии (${list.length})` : 'Комментарии';
+
+  if (list.length === 0) {
+    el.innerHTML = `<div class="c-empty-m">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <p>Комментариев пока нет.<br>Нажмите на разворот чтобы<br>оставить замечание.</p>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(c => `
+    <div class="c-item-m" id="ci-${c.id}">
+      <div class="c-item-top">
+        <div class="c-ava-m">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div class="c-meta-m">
+          <div class="c-name-row">
+            <span class="c-author-m">${c.author}</span>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span class="c-time-m">${c.time}</span>
+              <button class="c-del-m" onclick="delComment(${c.id})">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <span class="c-spread-link-m">${spreads[c.spreadIdx ?? c.spread].label}</span>
+        </div>
+      </div>
+      <div class="c-text-m">${c.text}</div>
+    </div>
+  `).join('');
+}
+
+// ═══ NAV ═══
+function go(d) {
+  if (d === 1 && cur === spreads.length - 1) {
+    toast('Просмотр завершён! Оставьте комментарии или утвердите альбом.', 'blue');
+    return;
+  }
+  cur = Math.max(0, Math.min(spreads.length - 1, cur + d));
+  render();
+}
+
+// ═══ COMMENT ═══
+function addComment() {
+  const txt = document.getElementById('ctxt').value.trim();
+  if (!txt) return;
+  if (!allComments[cur]) allComments[cur] = [];
+  const now = new Date();
+  const dt = now.toLocaleDateString('ru') + ', ' + now.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  allComments[cur].push({ id: cid++, spread: cur, author:'Евгения Бешлиу', role:'grad', time:dt, text:txt });
+  document.getElementById('ctxt').value = '';
+  renderMarkers();
+  renderSheetList();
+  updateChip();
+  toast('Комментарий отправлен', 'green');
+}
+
+function delComment(id) {
+  for (const k in allComments) {
+    const i = allComments[k].findIndex(c => c.id === id);
+    if (i !== -1) { allComments[k].splice(i,1); break; }
+  }
+  renderMarkers();
+  renderSheetList();
+  updateChip();
+}
+
+// ═══ SHEET ═══
+function openSheet() {
+  renderSheetList();
+  document.getElementById('comments-sheet').classList.add('open');
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('comments-sheet').classList.remove('open');
+  document.getElementById('sheet-overlay').classList.remove('open');
+}
+
+// Enter = submit
+document.getElementById('ctxt').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(); }
+});
+
+// ═══ APPROVE ═══
+function approveAlbum() {
+  closeSheet();
+  document.getElementById('approved-overlay').classList.add('show');
+}
+
+// ═══ DRAWER ═══
+function openDrawer() {
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+// ═══ TOAST ═══
+function toast(msg, type='green') {
+  const icons = { green:'<polyline points="20 6 9 17 4 12"/>', blue:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' };
+  const w = document.getElementById('twrap');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<div class="t-icon ${type}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${icons[type]}</svg></div><span>${msg}</span>`;
+  w.appendChild(t);
+  setTimeout(() => { t.style.animation='tOut .28s ease forwards'; setTimeout(()=>t.remove(),280); }, 3000);
+}
+
+// ═══ INIT ═══
+render();
+</script>
+</body>
+</html>
