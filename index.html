@@ -185,8 +185,6 @@ html, body { background: var(--bg); color: var(--text); font-family: 'Montserrat
 .c-author { font-size: 0.78rem; font-weight: 700; color: var(--text); }
 .c-time   { font-size: 0.62rem; color: var(--muted2); white-space: nowrap; }
 .c-spread-link { font-size: 0.72rem; font-weight: 600; color: var(--blue); margin-bottom: 4px; display: block; }
-.c-del { background: none; border: none; color: var(--muted2); cursor: pointer; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.c-del:active { color: var(--red); background: var(--red-light); }
 .c-text { font-size: 0.8rem; color: var(--text2); line-height: 1.55; padding-left: 44px; }
 
 /* ─── COMMENT INPUT ─── */
@@ -536,7 +534,6 @@ function renderComments() {
             <span class="c-author">${c.author}</span>
             <div style="display:flex;align-items:center;gap:5px;">
               <span class="c-time">${c.time}</span>
-              <button class="c-del" onclick="delComment(${c.id})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>
           </div>
           <span class="c-spread-link">${spreads[c.spreadIdx ?? c.spread].label}</span>
@@ -571,14 +568,6 @@ function addComment() {
 document.getElementById('ctxt').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addComment(); }
 });
-
-function delComment(id) {
-  for (const k in allComments) {
-    const i = allComments[k].findIndex(c => c.id === id);
-    if (i !== -1) { allComments[k].splice(i,1); break; }
-  }
-  renderComments();
-}
 
 function approveAlbum() {
   document.getElementById('approved-overlay').classList.add('show');
